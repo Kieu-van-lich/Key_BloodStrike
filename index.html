@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Automated Key System</title>
+    <!-- Firebase SDK v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="tab-buttons">
+        <button class="tab-btn active" id="tab-user-btn" onclick="switchTab('user')">👤 USER</button>
+        <button class="tab-btn" id="tab-admin-btn" onclick="switchTab('admin')">🔐 ADMIN</button>
+    </div>
+
+    <!-- USER SECTION -->
+    <div id="user-section" class="section active">
+        <div id="game-selection">
+            <h2 style="text-align:center; margin-bottom:8px;">🎮 SELECT GAME</h2>
+            <p style="text-align:center; color:var(--primary); font-size:0.75rem; margin-bottom:20px;">(Click image to download APK)</p>
+            <div class="game-list">
+                <div class="game-card" data-game="pubg" data-title="PUBG Mobile" data-download="https://note2s.net/notes/edit/MX7R4Q" style="background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url('images/pubg.jpg');">
+                    <div class="card-content">
+                        <h3>PUBG Mobile</h3>
+                        <p class="game-note">📦 Your Allowance: <span id="pubg-user-allowance">0</span></p>
+                        <p class="game-note">🔑 Stock: <span id="pubg-count">0</span> keys</p>
+                        <div class="game-actions">
+                            <button class="btn-action buy" data-game="pubg">💸 BUY KEY</button>
+                            <button class="btn-action get" data-game="pubg" data-title="PUBG Mobile">🎁 GET KEY</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="game-card" data-game="bloodstrike" data-title="Blood Strike" data-download="https://www.mediafire.com/file/a6fxaxb65puh796/Blood_Strike_VIP_Trial.apk/file" style="background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url('images/blood-strike.jpg');">
+                    <div class="card-content">
+                        <h3>Blood Strike</h3>
+                        <p class="game-note">📦 Your Allowance: <span id="bs-user-allowance">0</span></p>
+                        <p class="game-note">🔑 Stock: <span id="bs-count">0</span> keys</p>
+                        <div class="game-actions">
+                            <button class="btn-action buy" data-game="bloodstrike">💸 BUY KEY</button>
+                            <button class="btn-action get" data-game="bloodstrike" data-title="Blood Strike">🎁 GET KEY</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="generator-area" style="display: none;">
+            <button class="back-btn" onclick="showGameSelection()"><i class="fas fa-arrow-left"></i> BACK</button>
+            <h2 id="current-game-title" style="text-align:center; color:var(--primary);">---</h2>
+            <div class="allowance-info" id="allowanceDisplay">✨ Remaining allowance: --</div>
+            <div class="key-box" id="userKeyBox">⚡ READY ⚡</div>
+            <button class="main-btn" id="redeemBtn">🎲 REDEEM KEY NOW</button>
+            <p id="msg" style="text-align:center; margin-top:15px; font-weight:500;"></p>
+        </div>
+    </div>
+
+    <!-- ADMIN SECTION -->
+    <div id="admin-section" class="section">
+        <div id="admin-login">
+            <h2 style="text-align:center; margin-bottom:20px;">🔒 ADMIN LOGIN</h2>
+            <input type="text" id="adminUser" placeholder="Username" autocomplete="off">
+            <input type="password" id="adminPwd" placeholder="Password" style="margin-top:12px;">
+            <button class="main-btn" onclick="verifyAdmin()">AUTHORIZE</button>
+        </div>
+        <div id="admin-content" style="display: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="color:var(--primary);">📊 DASHBOARD</h2>
+                <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
+            </div>
+            <select id="adminGameSelect" style="margin:15px 0 10px 0;">
+                <option value="pubg">PUBG Mobile</option>
+                <option value="bloodstrike">Blood Strike</option>
+            </select>
+            <div style="background: #0a0f1c; padding: 12px; border-radius: 14px; margin-bottom: 15px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="permanentKeyMode"> 
+                    <span>🔁 Chế độ Key vĩnh viễn (không bị xóa sau khi lấy)</span>
+                </label>
+            </div>
+            <textarea id="adminInput" rows="4" placeholder="Dán danh sách key (mỗi dòng một key)..."></textarea>
+            <button class="main-btn" onclick="addKeysToDB()">📤 UPLOAD KEYS</button>
+            <button class="main-btn" id="deleteAllKeysBtn" style="background: #dc2626; color: white; margin-top: 10px;">🗑️ DELETE ALL KEYS</button>
+            
+            <hr>
+            <p style="font-size:0.85rem;">✏️ Số lượt lấy key cho User:</p>
+            <input type="number" id="allowanceInput" placeholder="Nhập số lượt">
+            <button class="main-btn" style="background:#30363d; color:white;" onclick="updateAllowance()">🔄 CẬP NHẬT SỐ LƯỢT</button>
+
+            <!-- QUẢN LÝ KEY CHI TIẾT (THÊM/SỬA/XÓA/XEM) -->
+            <div class="key-mgmt-section">
+                <div class="key-mgmt-title"><i class="fas fa-database"></i> 🔑 Quản lý Key chi tiết</div>
+                <div class="add-key-form">
+                    <input type="text" id="newKeyValue" placeholder="Nhập key mới..." autocomplete="off">
+                    <label class="perm-check">
+                        <input type="checkbox" id="newKeyPermanent"> <span>Vĩnh viễn</span>
+                    </label>
+                    <button id="addSingleKeyBtn"><i class="fas fa-plus"></i> Thêm</button>
+                </div>
+                <div class="keys-table-container">
+                    <table class="keys-table" id="keysTable">
+                        <thead>
+                            <tr><th>#</th><th>Key Value</th><th>Vĩnh viễn</th><th>Thao tác</th></tr>
+                        </thead>
+                        <tbody id="keysTableBody">
+                            <tr><td colspan="4" class="empty-keys">Đang tải danh sách key...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SỬA KEY -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3>✏️ Sửa Key</h3>
+        <input type="text" id="editKeyValue" placeholder="Giá trị key">
+        <label style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+            <input type="checkbox" id="editKeyPermanent"> Vĩnh viễn (không tự xóa khi lấy)
+        </label>
+        <div class="modal-buttons">
+            <button class="save-modal-btn" id="confirmEditBtn">Lưu thay đổi</button>
+            <button class="cancel-modal-btn" id="closeModalBtn">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ======================= 🔥 FIREBASE CONFIG (THAY THÔNG TIN CỦA BẠN VÀO ĐÂY) =======================
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "your-project.firebaseapp.com",
+        projectId: "your-project-id",
+        databaseURL: "https://key-bloodstrike-c140b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+    // ================================================================================================
+    
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+
+    const ADMIN_USER = "Hiroki";
+    const ADMIN_PASS = "Vanlich201106@";
+
+    let currentGame = '';
+    let currentGameTitle = '';
+    let currentKeysListenerRef = null;
+    let currentAdminGame = 'pubg';
+
+    function showMessage(elementId, text, isError = false) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.innerText = text;
+            el.style.color = isError ? 'var(--danger)' : 'var(--primary)';
+            setTimeout(() => {
+                if (document.getElementById(elementId)?.innerText === text) 
+                    el.innerText = '';
+            }, 4000);
+        }
+    }
+
+    window.switchTab = function(tab) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tab + '-section').classList.add('active');
+        document.getElementById('tab-' + tab + '-btn').classList.add('active');
+        if (tab === 'admin' && sessionStorage.getItem('adminLogged') === 'true') {
+            refreshKeyListForCurrentGame();
+        }
+    };
+
+    function attachGameEvents() {
+        document.querySelectorAll('.game-card').forEach(card => {
+            const downloadUrl = card.getAttribute('data-download');
+            card.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-action')) return;
+                if (downloadUrl) window.open(downloadUrl, '_blank');
+            });
+        });
+        document.querySelectorAll('.btn-action.buy').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                alert("💰 Chức năng mua key sẽ sớm cập nhật!");
+            });
+        });
+        document.querySelectorAll('.btn-action.get').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const game = btn.getAttribute('data-game');
+                const title = btn.getAttribute('data-title');
+                if (game && title) selectGame(game, title);
+            });
+        });
+    }
+
+    window.selectGame = function(game, title) {
+        currentGame = game;
+        currentGameTitle = title;
+        document.getElementById('game-selection').style.display = 'none';
+        document.getElementById('generator-area').style.display = 'block';
+        document.getElementById('current-game-title').innerText = title;
+        const allowanceRef = database.ref('allowance/' + currentGame);
+        allowanceRef.once('value').then(snap => {
+            const remain = snap.val() || 0;
+            document.getElementById('allowanceDisplay').innerHTML = `✨ Remaining allowance: <strong>${remain}</strong>`;
+        }).catch(err => console.error(err));
+    };
+
+    window.showGameSelection = function() {
+        document.getElementById('game-selection').style.display = 'block';
+        document.getElementById('generator-area').style.display = 'none';
+        currentGame = '';
+    };
+
+    async function getKeyFromDB() {
+        const keyBox = document.getElementById('userKeyBox');
+        if (!currentGame) {
+            showMessage('msg', '❌ Please select a game first!', true);
+            return;
+        }
+        const allowanceRef = database.ref('allowance/' + currentGame);
+        const keysRef = database.ref('keys/' + currentGame);
+        
+        try {
+            const allowanceResult = await allowanceRef.transaction((currentAllow) => {
+                let allow = currentAllow || 0;
+                if (allow <= 0) return;
+                return allow - 1;
+            });
+            if (!allowanceResult.committed || allowanceResult.snapshot.val() === undefined) {
+                keyBox.innerText = '⛔ NO ALLOWANCE';
+                showMessage('msg', '❌ Bạn đã hết lượt lấy key!', true);
+                return;
+            }
+            const newAllowance = allowanceResult.snapshot.val();
+            document.getElementById('allowanceDisplay').innerHTML = `✨ Remaining allowance: <strong>${newAllowance}</strong>`;
+            
+            let keyValue = null;
+            const keyResult = await keysRef.transaction((keysData) => {
+                if (!keysData) return;
+                const entries = Object.entries(keysData);
+                if (entries.length === 0) return;
+                const [firstId, firstKey] = entries[0];
+                keyValue = firstKey.value;
+                const isPerm = firstKey.isPermanent === true;
+                if (!isPerm) {
+                    delete keysData[firstId];
+                }
+                return keysData;
+            });
+            if (!keyResult.committed || !keyValue) {
+                await allowanceRef.set(newAllowance + 1);
+                document.getElementById('allowanceDisplay').innerHTML = `✨ Remaining allowance: <strong>${newAllowance + 1}</strong>`;
+                keyBox.innerText = '📭 OUT OF STOCK';
+                showMessage('msg', '⚠️ Hiện tại chưa có key nào. Vui lòng quay lại sau!', true);
+                return;
+            }
+            keyBox.innerText = keyValue;
+            showMessage('msg', '✅ Lấy key thành công! Đã trừ 1 lượt.', false);
+        } catch (error) {
+            console.error("Redeem error:", error);
+            keyBox.innerText = '⚠️ ERROR';
+            showMessage('msg', 'Lỗi kết nối hoặc hệ thống. Thử lại sau.', true);
+        }
+    }
+
+    window.addKeysToDB = async function() {
+        const targetGame = document.getElementById('adminGameSelect').value;
+        const rawKeys = document.getElementById('adminInput').value;
+        const isPermanent = document.getElementById('permanentKeyMode').checked;
+        if (!rawKeys.trim()) return alert("Vui lòng dán danh sách key!");
+        const keysArr = rawKeys.split(/\r?\n/).filter(k => k.trim().length > 0);
+        if (keysArr.length === 0) return;
+        const uploadPromises = keysArr.map(k => {
+            return database.ref('keys/' + targetGame).push({
+                value: k.trim(),
+                isPermanent: isPermanent
+            });
+        });
+        try {
+            await Promise.all(uploadPromises);
+            alert(`✅ Đã upload ${keysArr.length} keys cho ${targetGame} (vĩnh viễn: ${isPermanent})`);
+            document.getElementById('adminInput').value = '';
+        } catch (err) {
+            alert("Upload thất bại: " + err.message);
+        }
+    };
+
+    async function deleteAllKeys() {
+        const targetGame = document.getElementById('adminGameSelect').value;
+        const confirmDelete = confirm(`⚠️ Bạn có chắc chắn muốn xóa TOÀN BỘ key của game ${targetGame}? Hành động này không thể hoàn tác!`);
+        if (!confirmDelete) return;
+        try {
+            await database.ref('keys/' + targetGame).remove();
+            alert(`✅ Đã xóa tất cả key của game ${targetGame}`);
+        } catch (err) {
+            alert("Xóa thất bại: " + err.message);
+        }
+    }
+
+    window.updateAllowance = async function() {
+        const targetGame = document.getElementById('adminGameSelect').value;
+        let rawVal = document.getElementById('allowanceInput').value;
+        let newAllow = parseInt(rawVal);
+        if (isNaN(newAllow)) {
+            alert("Vui lòng nhập số hợp lệ!");
+            return;
+        }
+        try {
+            await database.ref('allowance/' + targetGame).set(newAllow);
+            alert(`Đã cập nhật số lượt cho ${targetGame} thành ${newAllow}`);
+        } catch (err) {
+            alert("Lỗi: " + err.message);
+        }
+    };
+
+    window.verifyAdmin = function() {
+        const user = document.getElementById('adminUser').value;
+        const pwd = document.getElementById('adminPwd').value;
+        if (user === ADMIN_USER && pwd === ADMIN_PASS) {
+            sessionStorage.setItem('adminLogged', 'true');
+            document.getElementById('admin-login').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'block';
+            currentAdminGame = document.getElementById('adminGameSelect').value;
+            refreshKeyListForCurrentGame();
+        } else {
+            alert("Access Denied!");
+        }
+    };
+    
+    window.logoutAdmin = function() {
+        sessionStorage.removeItem('adminLogged');
+        document.getElementById('admin-login').style.display = 'block';
+        document.getElementById('admin-content').style.display = 'none';
+        document.getElementById('adminUser').value = '';
+        document.getElementById('adminPwd').value = '';
+        if (currentKeysListenerRef) {
+            currentKeysListenerRef.off();
+            currentKeysListenerRef = null;
+        }
+    };
+
+    function refreshKeyListForCurrentGame() {
+        const game = document.getElementById('adminGameSelect').value;
+        if (!game) return;
+        if (currentKeysListenerRef) {
+            currentKeysListenerRef.off();
+        }
+        const keysRef = database.ref('keys/' + game);
+        currentKeysListenerRef = keysRef;
+        keysRef.on('value', (snapshot) => {
+            renderKeysTable(snapshot);
+        });
+    }
+
+    function renderKeysTable(snapshot) {
+        const tbody = document.getElementById('keysTableBody');
+        if (!tbody) return;
+        const keysData = snapshot.val();
+        if (!keysData || Object.keys(keysData).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-keys">📭 Chưa có key nào. Hãy thêm key hoặc upload.</td></tr>';
+            return;
+        }
+        const entries = Object.entries(keysData);
+        let html = '';
+        entries.forEach(([keyId, keyObj], idx) => {
+            const value = keyObj.value || 'Không xác định';
+            const isPerm = keyObj.isPermanent === true;
+            html += `<tr>
+                        <td>${idx+1}</td>
+                        <td class="key-value" title="${escapeHtml(value)}">${escapeHtml(value)}</td>
+                        <td><span class="perm-badge ${isPerm}">${isPerm ? '✅ Vĩnh viễn' : '⏳ Dùng 1 lần'}</span></td>
+                        <td class="action-buttons">
+                            <button class="edit-btn" data-keyid="${keyId}" data-value="${escapeHtml(value)}" data-perm="${isPerm}"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" data-keyid="${keyId}"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>`;
+        });
+        tbody.innerHTML = html;
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const keyId = btn.getAttribute('data-keyid');
+                const currentValue = btn.getAttribute('data-value');
+                const isPerm = btn.getAttribute('data-perm') === 'true';
+                openEditModal(keyId, currentValue, isPerm);
+            });
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const keyId = btn.getAttribute('data-keyid');
+                if (confirm('Bạn có chắc muốn xóa key này?')) {
+                    await deleteKeyById(keyId);
+                }
+            });
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    async function addSingleKey() {
+        const game = document.getElementById('adminGameSelect').value;
+        const keyValue = document.getElementById('newKeyValue').value.trim();
+        const isPermanent = document.getElementById('newKeyPermanent').checked;
+        if (!keyValue) {
+            alert('Vui lòng nhập key!');
+            return;
+        }
+        try {
+            await database.ref('keys/' + game).push({
+                value: keyValue,
+                isPermanent: isPermanent
+            });
+            document.getElementById('newKeyValue').value = '';
+            document.getElementById('newKeyPermanent').checked = false;
+        } catch (err) {
+            alert('Thêm key thất bại: ' + err.message);
+        }
+    }
+
+    async function deleteKeyById(keyId) {
+        const game = document.getElementById('adminGameSelect').value;
+        try {
+            await database.ref(`keys/${game}/${keyId}`).remove();
+        } catch (err) {
+            alert('Xóa key thất bại: ' + err.message);
+        }
+    }
+
+    let currentEditKeyId = null;
+    function openEditModal(keyId, currentValue, isPermanent) {
+        currentEditKeyId = keyId;
+        const editInput = document.getElementById('editKeyValue');
+        const editCheck = document.getElementById('editKeyPermanent');
+        editInput.value = currentValue;
+        editCheck.checked = isPermanent;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    async function confirmEditKey() {
+        if (!currentEditKeyId) return;
+        const game = document.getElementById('adminGameSelect').value;
+        const newValue = document.getElementById('editKeyValue').value.trim();
+        const newPermanent = document.getElementById('editKeyPermanent').checked;
+        if (!newValue) {
+            alert('Key không được để trống');
+            return;
+        }
+        try {
+            await database.ref(`keys/${game}/${currentEditKeyId}`).update({
+                value: newValue,
+                isPermanent: newPermanent
+            });
+            closeModal();
+        } catch (err) {
+            alert('Cập nhật thất bại: ' + err.message);
+        }
+    }
+    function closeModal() {
+        document.getElementById('editModal').style.display = 'none';
+        currentEditKeyId = null;
+    }
+
+    function checkAdminSession() {
+        if (sessionStorage.getItem('adminLogged') === 'true') {
+            document.getElementById('admin-login').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'block';
+            refreshKeyListForCurrentGame();
+        } else {
+            document.getElementById('admin-login').style.display = 'block';
+            document.getElementById('admin-content').style.display = 'none';
+        }
+    }
+
+    function bindRealtimeUpdates() {
+        database.ref('allowance/pubg').on('value', (snap) => {
+            const val = snap.val() || 0;
+            document.getElementById('pubg-user-allowance').innerText = val;
+            if (currentGame === 'pubg') document.getElementById('allowanceDisplay').innerHTML = `✨ Remaining allowance: <strong>${val}</strong>`;
+        });
+        database.ref('allowance/bloodstrike').on('value', (snap) => {
+            const val = snap.val() || 0;
+            document.getElementById('bs-user-allowance').innerText = val;
+            if (currentGame === 'bloodstrike') document.getElementById('allowanceDisplay').innerHTML = `✨ Remaining allowance: <strong>${val}</strong>`;
+        });
+        const updateStockCount = (game, elementId) => {
+            let count = 0;
+            const ref = database.ref('keys/' + game);
+            ref.on('child_added', () => {
+                count++;
+                document.getElementById(elementId).innerText = count;
+            });
+            ref.on('child_removed', () => {
+                count--;
+                document.getElementById(elementId).innerText = count;
+            });
+            ref.once('value', snap => {
+                count = snap.numChildren();
+                document.getElementById(elementId).innerText = count;
+            });
+        };
+        updateStockCount('pubg', 'pubg-count');
+        updateStockCount('bloodstrike', 'bs-count');
+    }
+
+    function initAdminGameSelect() {
+        const selectEl = document.getElementById('adminGameSelect');
+        selectEl.addEventListener('change', () => {
+            if (sessionStorage.getItem('adminLogged') === 'true') {
+                refreshKeyListForCurrentGame();
+            }
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        attachGameEvents();
+        bindRealtimeUpdates();
+        checkAdminSession();
+        initAdminGameSelect();
+        document.getElementById('generator-area').style.display = 'none';
+        document.getElementById('game-selection').style.display = 'block';
+        document.getElementById('redeemBtn')?.addEventListener('click', getKeyFromDB);
+        document.getElementById('deleteAllKeysBtn')?.addEventListener('click', deleteAllKeys);
+        document.getElementById('addSingleKeyBtn')?.addEventListener('click', addSingleKey);
+        document.getElementById('confirmEditBtn')?.addEventListener('click', confirmEditKey);
+        document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('editModal')) closeModal();
+        });
+    });
+</script>
+</body>
+</html>
